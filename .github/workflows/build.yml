@@ -27,6 +27,7 @@ jobs:
 
       - name: Setup devkitPro environment
         run: |
+          git config --global --add safe.directory '*'
           export DEVKITPRO=${DEVKITPRO:-/opt/devkitpro}
           export DEVKITA64=${DEVKITA64:-${DEVKITPRO}/devkitA64}
           echo "DEVKITPRO=${DEVKITPRO}" >> $GITHUB_ENV
