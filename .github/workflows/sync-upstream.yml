@@ -1,0 +1,86 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"  # Mondays at 04:17 UTC
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  sync:
+    name: Sync from upstream
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/proferabg/EdiZon-Overlay.git || true
+          git fetch upstream main
+
+      - name: Merge upstream with theirs strategy
+        run: |
+          git checkout -b sync/upstream-$(date +%Y%m%d)
+          git merge upstream/main -X theirs --no-edit --allow-unrelated-histories \
+            -m "chore: sync upstream proferabg/EdiZon-Overlay $(date +%Y-%m-%d)" || true
+
+      - name: Restore protected paths
+        run: bash scripts/restore_protected.sh
+
+      - name: Apply ryazhenka patches
+        run: bash scripts/apply_ryazhenka_patches.sh
+
+      - name: Commit patched result
+        run: |
+          git add -A
+          git diff --cached --quiet || git commit -m "chore: apply ryazhenka patches after upstream sync $(date +%Y-%m-%d)"
+
+      - name: Push sync branch
+        run: |
+          git push origin HEAD
+
+      - name: Open pull request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = `sync/upstream-${new Date().toISOString().slice(0,10).replace(/-/g,'')}`;
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${branch}`,
+              state: 'open'
+            });
+            if (prs.length === 0) {
+              await github.rest.pulls.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `chore: sync upstream ${new Date().toISOString().slice(0,10)}`,
+                head: branch,
+                base: 'main',
+                body: [
+                  '## Upstream sync',
+                  '',
+                  'Auto-merged from `proferabg/EdiZon-Overlay` with `-X theirs`.',
+                  'Protected paths restored by `restore_protected.sh`.',
+                  'Ryazhenka patches applied by `apply_ryazhenka_patches.sh`.',
+                  '',
+                  '**Author:** Dimasick-git',
+                ].join('\n')
+              });
+            }

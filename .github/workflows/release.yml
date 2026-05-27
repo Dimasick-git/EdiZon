@@ -1,0 +1,113 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.0.16)"
+        required: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and release
+    runs-on: ubuntu-latest
+    container: devkitpro/devkita64:latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup devkitPro environment
+        run: |
+          export DEVKITPRO=${DEVKITPRO:-/opt/devkitpro}
+          export DEVKITA64=${DEVKITA64:-${DEVKITPRO}/devkitA64}
+          echo "DEVKITPRO=${DEVKITPRO}" >> $GITHUB_ENV
+          echo "DEVKITA64=${DEVKITA64}" >> $GITHUB_ENV
+          echo "${DEVKITA64}/bin" >> $GITHUB_PATH
+          echo "${DEVKITPRO}/tools/bin" >> $GITHUB_PATH
+
+      - name: Resolve version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG_VERSION="${{ github.ref_name }}"
+            # Strip leading 'v' for APP_VERSION
+            APP_VER="${TAG_VERSION#v}"
+          else
+            APP_VER="${{ github.event.inputs.version }}"
+            TAG_VERSION="v${APP_VER}"
+          fi
+          # Sync .ryazhenka-version with release tag
+          echo "${APP_VER}" > .ryazhenka-version
+          echo "APP_VER=${APP_VER}" >> $GITHUB_ENV
+          echo "TAG_VERSION=${TAG_VERSION}" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: |
+          apt-get update -q
+          apt-get install -y -q zip python3
+
+      - name: Build
+        run: make all
+
+      - name: Verify RYZH signature
+        run: |
+          OVL_FILE="out/ovlEdiZon.ovl"
+          LAST4=$(tail -c 4 "${OVL_FILE}" | od -A n -t x1 | tr -d ' \n')
+          EXPECTED=$(printf 'RYZH' | od -A n -t x1 | tr -d ' \n')
+          echo "Signature bytes: ${LAST4}"
+          if [ "${LAST4}" != "${EXPECTED}" ]; then
+            echo "ERROR: Expected RYZH signature, got ${LAST4}"
+            exit 1
+          fi
+          echo "RYZH signature verified."
+
+      - name: Create BUILD_INFO.txt
+        run: |
+          cat > BUILD_INFO.txt <<EOF
+          App:            EdiZon
+          Version:        ${APP_VER}
+          Tag:            ${TAG_VERSION}
+          Commit:         ${{ github.sha }}
+          Author:         Dimasick-git
+          Commit author:  ${{ github.actor }}
+          Built:          $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          EOF
+
+      - name: Package release zip
+        run: |
+          mkdir -p dist
+          cp out/ovlEdiZon.ovl dist/
+          cp SdOut/EdiZon-Overlay.zip dist/EdiZon-Overlay-${APP_VER}.zip
+          cd dist
+          zip -u EdiZon-Overlay-${APP_VER}.zip ../BUILD_INFO.txt
+          cd ..
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_VERSION }}
+          name: "EdiZon ${{ env.APP_VER }}"
+          body: |
+            **EdiZon Overlay ${{ env.APP_VER }}**
+
+            Built on libryazhahand. Per-overlay config: `/config/edizon/`
+
+            **Author:** Dimasick-git
+            **Commit author:** ${{ github.actor }}
+          prerelease: false
+          make_latest: "true"
+          files: |
+            dist/ovlEdiZon.ovl
+            dist/EdiZon-Overlay-${{ env.APP_VER }}.zip
