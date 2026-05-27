@@ -137,7 +137,7 @@ jobs:
             **Author:** Dimasick-git
             **Commit author:** ${{ github.actor }}
           prerelease: false
-          make_latest: "true"
+          make_latest: "false"
           files: |
             dist/ovlEdiZon.ovl
             dist/EdiZon-Overlay-ci.zip
