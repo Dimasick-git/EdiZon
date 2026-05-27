@@ -16,7 +16,6 @@ APP_VERSION		:=	$(shell cat $(TOPDIR)/.ryazhenka-version | tr -d '[:space:]')
 
 ifeq ($(CI_VERSION_SUFFIX),)
 else
-	APP_VERSION	:=	$(APP_VERSION)+ryazh.$(CI_VERSION_SUFFIX)
 endif
 
 TARGET			:=	$(APP_TITLE)

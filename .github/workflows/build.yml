@@ -40,9 +40,7 @@ jobs:
         run: |
           BASE_VERSION=$(cat .ryazhenka-version | tr -d '[:space:]')
           SHORT_SHA=$(git rev-parse --short HEAD)
-          CI_VERSION="${BASE_VERSION}+ryazh.${SHORT_SHA}"
           echo "BASE_VERSION=${BASE_VERSION}" >> $GITHUB_ENV
-          echo "CI_VERSION=${CI_VERSION}" >> $GITHUB_ENV
           echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
 
       - name: Install dependencies
@@ -51,7 +49,7 @@ jobs:
           apt-get install -y -q zip python3
 
       - name: Build
-        run: make all CI_VERSION_SUFFIX="${SHORT_SHA}"
+        run: make all
 
       - name: Verify RYZH signature
         run: |
@@ -69,8 +67,7 @@ jobs:
         run: |
           cat > BUILD_INFO.txt <<EOF
           App:            EdiZon
-          Version:        ${CI_VERSION}
-          Base version:   ${BASE_VERSION}
+                    Version:        ${BASE_VERSION}
           Commit:         ${{ github.sha }}
           Ref:            ${{ github.ref }}
           Run:            ${{ github.run_number }}
@@ -96,53 +93,3 @@ jobs:
             dist/ovlEdiZon.ovl
             dist/EdiZon-Overlay-ci.zip
           retention-days: 30
-
-  auto-release:
-    name: Auto release (latest-build)
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set version info
-        run: |
-          BASE_VERSION=$(cat .ryazhenka-version | tr -d '[:space:]')
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          echo "BASE_VERSION=${BASE_VERSION}" >> $GITHUB_ENV
-          echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
-          echo "CI_VERSION=${BASE_VERSION}+ryazh.${SHORT_SHA}" >> $GITHUB_ENV
-
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: EdiZon-Overlay-${{ env.SHORT_SHA }}
-          path: dist/
-
-      - name: Force-move latest-build tag
-        run: |
-          git config user.email "actions@github.com"
-          git config user.name "GitHub Actions"
-          git tag -f latest-build
-          git push origin latest-build --force
-
-      - name: Publish latest-build release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest-build
-          name: "Latest Build — ${{ env.CI_VERSION }}"
-          body: |
-            Automated build from commit `${{ github.sha }}`.
-
-            **Version:** `${{ env.CI_VERSION }}`
-            **Author:** Dimasick-git
-            **Commit author:** ${{ github.actor }}
-          prerelease: false
-          make_latest: "true"
-          files: |
-            dist/ovlEdiZon.ovl
-            dist/EdiZon-Overlay-ci.zip
