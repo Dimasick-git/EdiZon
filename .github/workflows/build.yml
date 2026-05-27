@@ -18,6 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     container: devkitpro/devkita64:latest
 
+    outputs:
+      short_sha: ${{ steps.version.outputs.short_sha }}
+      base_version: ${{ steps.version.outputs.base_version }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,13 +39,15 @@ jobs:
           echo "${DEVKITA64}/bin" >> $GITHUB_PATH
           echo "${DEVKITPRO}/tools/bin" >> $GITHUB_PATH
 
-      - name: Set version with CI suffix
+      - name: Set version
         id: version
         run: |
           BASE_VERSION=$(cat .ryazhenka-version | tr -d '[:space:]')
           SHORT_SHA=$(git rev-parse --short HEAD)
           echo "BASE_VERSION=${BASE_VERSION}" >> $GITHUB_ENV
           echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
+          echo "base_version=${BASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
 
       - name: Install dependencies
         run: |
@@ -49,7 +55,7 @@ jobs:
           apt-get install -y -q zip python3
 
       - name: Build
-        run: make all
+        run: make all CI_VERSION_SUFFIX="${SHORT_SHA}"
 
       - name: Verify RYZH signature
         run: |
@@ -67,7 +73,8 @@ jobs:
         run: |
           cat > BUILD_INFO.txt <<EOF
           App:            EdiZon
-                    Version:        ${BASE_VERSION}
+          Version:        ${BASE_VERSION}+ryazh.${SHORT_SHA}
+          Base version:   ${BASE_VERSION}
           Commit:         ${{ github.sha }}
           Ref:            ${{ github.ref }}
           Run:            ${{ github.run_number }}
@@ -81,9 +88,7 @@ jobs:
           mkdir -p dist
           cp out/ovlEdiZon.ovl dist/
           cp SdOut/EdiZon-Overlay.zip dist/EdiZon-Overlay-ci.zip
-          cd dist
-          zip -u EdiZon-Overlay-ci.zip ../BUILD_INFO.txt
-          cd ..
+          cd dist && zip -u EdiZon-Overlay-ci.zip ../BUILD_INFO.txt && cd ..
 
       - name: Upload CI artifact
         uses: actions/upload-artifact@v4
@@ -93,3 +98,114 @@ jobs:
             dist/ovlEdiZon.ovl
             dist/EdiZon-Overlay-ci.zip
           retention-days: 30
+
+  # ── latest-build: обновляем преда-релиз на каждый push в main ──────────────
+  auto-release:
+    name: Auto release (latest-build)
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: EdiZon-Overlay-${{ needs.build.outputs.short_sha }}
+          path: dist/
+
+      - name: Force-move latest-build tag
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          git tag -f latest-build
+          git push origin latest-build --force
+
+      - name: Publish latest-build release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-build
+          name: "Latest Build — ${{ needs.build.outputs.base_version }}+ryazh.${{ needs.build.outputs.short_sha }}"
+          body: |
+            Automated build from commit `${{ github.sha }}`.
+
+            **Version:** `${{ needs.build.outputs.base_version }}+ryazh.${{ needs.build.outputs.short_sha }}`
+            **Author:** Dimasick-git
+            **Commit author:** ${{ github.actor }}
+          prerelease: false
+          make_latest: "true"
+          files: |
+            dist/ovlEdiZon.ovl
+            dist/EdiZon-Overlay-ci.zip
+
+  # ── version-release: если v{version} ещё не выходил — создать релиз ────────
+  version-release:
+    name: Version release (if new)
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if version tag already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VER="${{ needs.build.outputs.base_version }}"
+          TAG="v${VER}"
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Release ${TAG} already exists — skipping."
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Release ${TAG} not found — will create."
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "ver=${VER}" >> $GITHUB_OUTPUT
+
+      - name: Download artifact
+        if: steps.check.outputs.exists == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: EdiZon-Overlay-${{ needs.build.outputs.short_sha }}
+          path: dist/
+
+      - name: Rename zip for release
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          VER="${{ steps.check.outputs.ver }}"
+          mv dist/EdiZon-Overlay-ci.zip dist/EdiZon-Overlay-${VER}.zip
+
+      - name: Create version tag and release
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.check.outputs.tag }}"
+          VER="${{ steps.check.outputs.ver }}"
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          git tag "${TAG}"
+          git push origin "${TAG}"
+          gh release create "${TAG}" \
+            --title "EdiZon ${VER}" \
+            --notes "$(cat <<EOF
+          **EdiZon Overlay ${VER}**
+
+          Built on libryazhahand. Per-overlay config: \`/config/edizon/\`
+
+          **Author:** Dimasick-git
+          **Commit author:** ${{ github.actor }}
+          EOF
+          )" \
+            dist/ovlEdiZon.ovl \
+            "dist/EdiZon-Overlay-${VER}.zip"
