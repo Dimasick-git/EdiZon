@@ -12,13 +12,11 @@ fi
 
 echo "Restoring protected paths from main..."
 while IFS= read -r path || [ -n "${path}" ]; do
-    # Skip empty lines and comments
     [[ -z "${path}" || "${path}" == \#* ]] && continue
-
-    # Strip trailing slash for git checkout
     clean_path="${path%/}"
 
-    if git show "origin/main:${clean_path}" >/dev/null 2>&1; then
+    # Use git ls-tree to detect path — works for both files and gitlinks (submodules)
+    if git ls-tree origin/main "${clean_path}" 2>/dev/null | grep -q "${clean_path}"; then
         git checkout origin/main -- "${clean_path}" 2>/dev/null || true
         echo "  restored: ${clean_path}"
     else
