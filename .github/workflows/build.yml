@@ -73,8 +73,7 @@ jobs:
         run: |
           cat > BUILD_INFO.txt <<EOF
           App:            EdiZon
-          Version:        ${BASE_VERSION}+ryazh.${SHORT_SHA}
-          Base version:   ${BASE_VERSION}
+          Version:        ${BASE_VERSION}
           Commit:         ${{ github.sha }}
           Ref:            ${{ github.ref }}
           Run:            ${{ github.run_number }}
@@ -85,10 +84,11 @@ jobs:
 
       - name: Package artifact
         run: |
+          VER="${BASE_VERSION}"
           mkdir -p dist
           cp out/ovlEdiZon.ovl dist/
-          cp SdOut/EdiZon-Overlay.zip dist/EdiZon-Overlay-ci.zip
-          cd dist && zip -u EdiZon-Overlay-ci.zip ../BUILD_INFO.txt && cd ..
+          cp SdOut/EdiZon-Overlay.zip dist/EdiZon-Overlay-${VER}.zip
+          cd dist && zip -u EdiZon-Overlay-${VER}.zip ../BUILD_INFO.txt && cd ..
 
       - name: Upload CI artifact
         uses: actions/upload-artifact@v4
@@ -96,12 +96,12 @@ jobs:
           name: EdiZon-Overlay-${{ env.SHORT_SHA }}
           path: |
             dist/ovlEdiZon.ovl
-            dist/EdiZon-Overlay-ci.zip
+            dist/EdiZon-Overlay-${{ env.BASE_VERSION }}.zip
           retention-days: 30
 
-  # ── latest-build: обновляем преда-релиз на каждый push в main ──────────────
-  auto-release:
-    name: Auto release (latest-build)
+  # ── release: на каждый push в main — форс-двигаем v{version} и обновляем релиз ──
+  release:
+    name: Release v${{ needs.build.outputs.base_version }}
     runs-on: ubuntu-latest
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -118,140 +118,31 @@ jobs:
           name: EdiZon-Overlay-${{ needs.build.outputs.short_sha }}
           path: dist/
 
-      - name: Force-move latest-build tag
-        run: |
-          git config user.email "actions@github.com"
-          git config user.name "GitHub Actions"
-          git tag -f latest-build
-          git push origin latest-build --force
-
-      - name: Publish latest-build release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest-build
-          name: "Latest Build — ${{ needs.build.outputs.base_version }}+ryazh.${{ needs.build.outputs.short_sha }}"
-          body: |
-            Automated build from commit `${{ github.sha }}`.
-
-            **Version:** `${{ needs.build.outputs.base_version }}+ryazh.${{ needs.build.outputs.short_sha }}`
-            **Author:** Dimasick-git
-            **Commit author:** ${{ github.actor }}
-          prerelease: false
-          make_latest: "false"
-          files: |
-            dist/ovlEdiZon.ovl
-            dist/EdiZon-Overlay-ci.zip
-
-  # ── version-release: если v{version} ещё не выходил — создать релиз ────────
-  version-release:
-    name: Version release (if new)
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check if version tag already exists
-        id: check
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Force-move version tag
         run: |
           VER="${{ needs.build.outputs.base_version }}"
           TAG="v${VER}"
-          if gh release view "${TAG}" >/dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "Release ${TAG} already exists — skipping."
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "Release ${TAG} not found — will create."
-          fi
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
-          echo "ver=${VER}" >> $GITHUB_OUTPUT
-
-      - name: Download artifact
-        if: steps.check.outputs.exists == 'false'
-        uses: actions/download-artifact@v4
-        with:
-          name: EdiZon-Overlay-${{ needs.build.outputs.short_sha }}
-          path: dist/
-
-      - name: Rename zip for release
-        if: steps.check.outputs.exists == 'false'
-        run: |
-          VER="${{ steps.check.outputs.ver }}"
-          mv dist/EdiZon-Overlay-ci.zip dist/EdiZon-Overlay-${VER}.zip
-
-      - name: Create version tag and release
-        if: steps.check.outputs.exists == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="${{ steps.check.outputs.tag }}"
-          VER="${{ steps.check.outputs.ver }}"
           git config user.email "actions@github.com"
           git config user.name "GitHub Actions"
-          git tag "${TAG}"
-          git push origin "${TAG}"
-          gh release create "${TAG}" \
-            --title "EdiZon ${VER}" \
-            --notes "$(cat <<EOF
-          **EdiZon Overlay ${VER}**
+          git tag -f "${TAG}"
+          git push origin "${TAG}" --force
+          echo "TAG=${TAG}" >> $GITHUB_ENV
+          echo "VER=${VER}" >> $GITHUB_ENV
 
-          Built on libryazhahand. Per-overlay config: \`/config/edizon/\`
-
-          **Author:** Dimasick-git
-          **Commit author:** ${{ github.actor }}
-          EOF
-          )" \
-            dist/ovlEdiZon.ovl \
-            "dist/EdiZon-Overlay-${VER}.zip"
-
-  auto-tag-on-version-change:
-    name: Auto-tag if .ryazhenka-version changed (triggers release.yml)
-    needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
+      - name: Create or update release
+        uses: softprops/action-gh-release@v2
         with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Compare APP_VERSION with latest release tag
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -e
-          APP_VERSION=$(cat .ryazhenka-version | tr -d '[:space:]')
-          if [ -z "$APP_VERSION" ]; then
-            echo "::error::Could not read .ryazhenka-version."
-            exit 1
-          fi
-          TAG="v${APP_VERSION}"
-          LATEST=$(gh release list --repo "${{ github.repository }}" --limit 5 --json tagName --jq '.[] | .tagName' | grep -E '^v[0-9]' | head -1 || echo "")
-          echo "APP_VERSION=$APP_VERSION  ->  TAG=$TAG"
-          echo "Latest release tag: $LATEST"
-          if [ "$TAG" = "$LATEST" ]; then
-            echo "Already released; nothing to do."
-            exit 0
-          fi
-          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Tag $TAG already has a release; nothing to do."
-            exit 0
-          fi
-          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
-            echo "Tag exists but no release; pushing to (re-)trigger release.yml."
-            git push origin "$TAG" || true
-          else
-            git config user.name  'ryazhahand-release-bot'
-            git config user.email 'ryazhahand-release-bot@users.noreply.github.com'
-            git tag -a "$TAG" -m "Auto-tag on .ryazhenka-version change: $TAG"
-            git push origin "$TAG"
-            echo "Pushed $TAG — release.yml will publish."
-          fi
+          tag_name: ${{ env.TAG }}
+          name: "EdiZon ${{ env.VER }}"
+          body: |
+            **EdiZon Overlay ${{ env.VER }}**
 
+            Built on libryazhahand. Per-overlay config: `/config/edizon/`
+
+            **Author:** Dimasick-git
+            **Commit:** `${{ github.sha }}`
+          prerelease: false
+          make_latest: "true"
+          files: |
+            dist/ovlEdiZon.ovl
+            dist/EdiZon-Overlay-${{ env.VER }}.zip
