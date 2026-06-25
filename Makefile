@@ -12,7 +12,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 APP_TITLE		:=	EdiZon
 APP_FILENAME	:=  ovlEdiZon
 APP_AUTHOR		:=	WerWolv, proferabg, ppkantorski, and Dimasick-git
-APP_VERSION		:=	$(shell cat $(TOPDIR)/.ryazhenka-version | tr -d '[:space:]')
+APP_VERSION		:=	1.0.16
 
 ifeq ($(CI_VERSION_SUFFIX),)
 else

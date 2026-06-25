@@ -6,7 +6,7 @@
 
 ## О проекте
 
-EdiZon Overlay — это оверлей для Nintendo Switch, позволяющий управлять чит-кодами (через dmntcht) и просматривать системную информацию (температуры, частоты, IP). Форк использует **libryazhahand** вместо libultrahand, что даёт более чистые заголовки и поддержку тем через `/config/ryazhahand/`.
+EdiZon Overlay — это оверлей для Nintendo Switch, позволяющий управлять чит-кодами (через dmntcht) и просматривать системную информацию (температуры, частоты, IP). Форк использует **libryazhahand** вместо libryazhahand, что даёт более чистые заголовки и поддержку тем через `/config/ryazhahand/`.
 
 Оригинал: [@WerWolv](https://github.com/WerWolv/EdiZon)  
 Апстрим форка: [proferabg/EdiZon-Overlay](https://github.com/proferabg/EdiZon-Overlay)  
