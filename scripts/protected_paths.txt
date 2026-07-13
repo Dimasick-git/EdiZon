@@ -6,3 +6,4 @@ docs/
 README.md
 Makefile
 libs/libryazhahand
+source/main.cpp
