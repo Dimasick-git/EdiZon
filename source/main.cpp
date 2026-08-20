@@ -32,13 +32,14 @@
 
 #include "utils.hpp"
 #include "cheat.hpp"
+#include "language.hpp"
 
 #include <unistd.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 
-static bool g_lang_ru = false;
 static inline const char* tr(const char* en, const char* ru) {
-    return g_lang_ru ? ru : en;
+    return edz::language::is_russian() ? ru : en;
 }
 
 class GuiCheats;
@@ -47,7 +48,7 @@ class GuiStats;
 
 class GuiMain : public tsl::Gui {
 public:
-    GuiMain() { }
+    GuiMain() { edz::language::load(); }
 
     ~GuiMain() { }
 
@@ -58,9 +59,9 @@ public:
             renderer->drawString(APP_VERSION, false, 20, 52+23, 15, (tsl::bannerVersionTextColor));
 
             if (edz::cheat::CheatManager::getProcessID() != 0) {
-                renderer->drawString("Program ID", false, 150 +14, 40 -6, 15, (tsl::style::color::ColorText));
-                renderer->drawString("Build ID", false, 150 +14, 60 -6, 15, (tsl::style::color::ColorText));
-                renderer->drawString("Process ID", false, 150 +14, 80 -6, 15, (tsl::style::color::ColorText));
+                renderer->drawString(tr("Program ID", "ID программы"), false, 150 +14, 40 -6, 15, (tsl::style::color::ColorText));
+                renderer->drawString(tr("Build ID", "ID сборки"), false, 150 +14, 60 -6, 15, (tsl::style::color::ColorText));
+                renderer->drawString(tr("Process ID", "ID процесса"), false, 150 +14, 80 -6, 15, (tsl::style::color::ColorText));
                 renderer->drawString(GuiMain::s_runningTitleIDString.c_str(), false, 250 +14, 40 -6, 15, (tsl::style::color::ColorHighlight));
                 renderer->drawString(GuiMain::s_runningBuildIDString.c_str(), false, 250 +14, 60 -6, 15, (tsl::style::color::ColorHighlight));
                 renderer->drawString(GuiMain::s_runningProcessIDString.c_str(), false, 250 +14, 80 -6, 15, (tsl::style::color::ColorHighlight));
@@ -96,8 +97,11 @@ public:
         });
         list->addItem(statsItem);
 
-        auto langItem = new tsl::elm::ToggleListItem("Language / Язык", g_lang_ru);
-        langItem->setStateChangedListener([](bool state) { g_lang_ru = state; });
+        auto langItem = new tsl::elm::ToggleListItem(tr("Language", "Язык"), edz::language::is_russian());
+        langItem->setStateChangedListener([](bool state) {
+            edz::language::set_russian(state);
+            edz::language::save();
+        });
         list->addItem(langItem);
 
         //list->disableCaching();
@@ -134,9 +138,9 @@ public:
 
 
             if (edz::cheat::CheatManager::getProcessID() != 0) {
-                renderer->drawString("Program ID", false, 150 +14, 40 -6, 15, (tsl::style::color::ColorText));
-                renderer->drawString("Build ID", false, 150 +14, 60 -6, 15, (tsl::style::color::ColorText));
-                renderer->drawString("Process ID", false, 150 +14, 80 -6, 15, (tsl::style::color::ColorText));
+                renderer->drawString(tr("Program ID", "ID программы"), false, 150 +14, 40 -6, 15, (tsl::style::color::ColorText));
+                renderer->drawString(tr("Build ID", "ID сборки"), false, 150 +14, 60 -6, 15, (tsl::style::color::ColorText));
+                renderer->drawString(tr("Process ID", "ID процесса"), false, 150 +14, 80 -6, 15, (tsl::style::color::ColorText));
                 renderer->drawString(GuiMain::s_runningTitleIDString.c_str(), false, 250 +14, 40 -6, 15, (tsl::style::color::ColorHighlight));
                 renderer->drawString(GuiMain::s_runningBuildIDString.c_str(), false, 250 +14, 60 -6, 15, (tsl::style::color::ColorHighlight));
                 renderer->drawString(GuiMain::s_runningProcessIDString.c_str(), false, 250 +14, 80 -6, 15, (tsl::style::color::ColorHighlight));
