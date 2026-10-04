@@ -12,11 +12,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 APP_TITLE		:=	EdiZon
 APP_FILENAME	:=  ovlEdiZon
 APP_AUTHOR		:=	WerWolv, proferabg, ppkantorski, and Dimasick-git
-APP_VERSION		:=	1.0.16
-
-ifeq ($(CI_VERSION_SUFFIX),)
-else
-endif
+APP_VERSION		:=	$(shell cat $(TOPDIR)/.ryazhenka-version)
 
 TARGET			:=	$(APP_TITLE)
 OUTDIR			:=	out
@@ -26,12 +22,7 @@ SOURCES			+=  $(foreach dir,$(SOURCES_TOP),$(shell find $(dir) -type d 2>/dev/nu
 INCLUDES		:=	include
 DATA			:=	data
 
-# libryazhahand — primary; fall back to ultrahand.mk if not present
-ifneq ($(wildcard ${TOPDIR}/libs/libryazhahand/ryazhahand.mk),)
 include ${TOPDIR}/libs/libryazhahand/ryazhahand.mk
-else ifneq ($(wildcard ${TOPDIR}/libs/libultrahand/ultrahand.mk),)
-include ${TOPDIR}/libs/libultrahand/ultrahand.mk
-endif
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -60,21 +51,21 @@ LDFLAGS += -Wl,-wrap,__cxa_throw \
            -Wl,-wrap,__gxx_personality_v0
 
 
-CFLAGS	+=	$(INCLUDE) -D__SWITCH__ -D__OVERLAY__ -I$(PORTLIBS)/include/freetype2 $(pkg-config --cflags --libs python3) -Wno-deprecated-declarations
+CFLAGS	+=	$(INCLUDE) -D__SWITCH__ -D__OVERLAY__ -I$(PORTLIBS)/include/freetype2 -Wno-deprecated-declarations
 CFLAGS	+=	-DAPP_VERSION=\"$(APP_VERSION)\" -DAPP_TITLE=\"$(APP_TITLE)\" -DAPP_AUTHOR=\""$(APP_AUTHOR)"\"
 
-CXXFLAGS	:= $(CFLAGS) -fexceptions -std=c++26
+CXXFLAGS	:= $(CFLAGS) -fno-exceptions -fno-rtti -std=c++26
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	+=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
 # libryazhahand pulls in libpng via tsl_utils.cpp
-LIBS	:= -lpng -lz -lnx
+LIBS	:= -lpng -lcurl -lz -lminizip -lmbedtls -lmbedx509 -lmbedcrypto -lnx
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries
 #---------------------------------------------------------------------------------
-LIBDIRS	:= $(CURDIR)/libs/nxpy $(PORTLIBS) $(LIBNX)
+LIBDIRS	:= $(PORTLIBS) $(LIBNX)
 
 
 #---------------------------------------------------------------------------------
@@ -173,7 +164,6 @@ all: $(BUILD)
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@ $(BUILD) $(OUTDIR)
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
-	@rm -rf SdOut
 	@mkdir -p SdOut/switch/.overlays
 	@cp -rf $(OUTPUT).ovl SdOut/switch/.overlays/
 	@cd $(CURDIR)/SdOut; zip -r -q -9 $(APP_TITLE)-Overlay.zip switch; cd $(CURDIR)

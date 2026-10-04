@@ -71,7 +71,7 @@ public:
         auto list = new tsl::elm::List();
 
         if(edz::cheat::CheatManager::isCheatServiceAvailable()){
-            auto cheatsItem = new tsl::elm::ListItem(tr("Cheats", "Читы"));
+            auto cheatsItem = new tsl::elm::CompactListItem(tr("Cheats", "Читы"));
             cheatsItem->setClickListener([cheatsItem](s64 keys) {
                 if (keys & KEY_A) {
                     //tsl::shiftItemFocus(cheatsItem);
@@ -82,11 +82,11 @@ public:
             });
             list->addItem(cheatsItem);
         } else {
-            auto noDmntSvc = new tsl::elm::ListItem(tr("Cheat Service Unavailable!", "Сервис читов недоступен!"));
+            auto noDmntSvc = new tsl::elm::CompactListItem(tr("Cheat Service Unavailable!", "Сервис читов недоступен!"));
             list->addItem(noDmntSvc);
         }
 
-        auto statsItem  = new tsl::elm::ListItem(tr("System Information", "Системная информация"));
+        auto statsItem  = new tsl::elm::CompactListItem(tr("System Information", "Системная информация"));
         statsItem->setClickListener([statsItem](s64 keys) {
             if (keys & KEY_A) {
                 //tsl::shiftItemFocus(statsItem);
@@ -97,7 +97,7 @@ public:
         });
         list->addItem(statsItem);
 
-        auto langItem = new tsl::elm::ToggleListItem(tr("Language", "Язык"), edz::language::is_russian());
+        auto langItem = new tsl::elm::CompactToggleListItem(tr("Language", "Язык"), edz::language::is_russian());
         langItem->setStateChangedListener([](bool state) {
             edz::language::set_russian(state);
             edz::language::save();
@@ -148,12 +148,8 @@ public:
         }));
 
         if (edz::cheat::CheatManager::getCheats().size() == 0) {
-            auto warning = new tsl::elm::CustomDrawer([](tsl::gfx::Renderer *renderer, u16 x, u16 y, u16 w, u16 h){
-                static const auto iconWidth = renderer->getTextDimensions("", false, 90).first;
-                static const auto textWidth = renderer->getTextDimensions(tr("No Cheats loaded!", "Читы не загружены!"), false, 25).first;
-                renderer->drawString("", false, (tsl::cfg::FramebufferWidth - iconWidth) / 2, 274, 90, (0xFFFF));
-                renderer->drawString(tr("No Cheats loaded!", "Читы не загружены!"), false, (tsl::cfg::FramebufferWidth - textWidth) / 2, 360, 25, (0xFFFF));
-            });
+            auto warning = new tsl::elm::List();
+            warning->addItem(new tsl::elm::CompactDescription(tr("No Cheats loaded!", "Читы не загружены!")));
 
             rootFrame->setContent(warning);
 
@@ -161,8 +157,8 @@ public:
             auto list = new tsl::elm::List();
             std::string head = tr("Section: ", "Раздел: ") + this->m_section;
 
-            if(m_section.length() > 0) list->addItem(new tsl::elm::CategoryHeader(head));
-            else list->addItem(new tsl::elm::CategoryHeader(tr("Available cheats", "Доступные читы")));
+            if(m_section.length() > 0) list->addItem(new tsl::elm::CompactCategoryHeader(head));
+            else list->addItem(new tsl::elm::CompactCategoryHeader(tr("Available cheats", "Доступные читы")));
 
             bool skip = false, inSection = false, submenus = true;
             std::string skipUntil = "";
@@ -186,7 +182,7 @@ public:
                         replaceAll(name, "SectionStart:", "");
 
                         //create submenu button
-                        auto cheatsSubmenu = new tsl::elm::ListItem(name);
+                        auto cheatsSubmenu = new tsl::elm::CompactListItem(name);
                         cheatsSubmenu->setClickListener([name = name, cheatsSubmenu](s64 keys) {
                             if (keys & KEY_A) {
                                 //tsl::shiftItemFocus(cheatsSubmenu);
@@ -212,7 +208,7 @@ public:
                         std::string cheatNameCheck = cheat->getName();
                         replaceAll(cheatNameCheck, ":ENABLED", "");
 
-                        auto cheatToggleItem = new tsl::elm::ToggleListItem(/*formatString("%d:%s: %s", cheat->getID(), (cheat->isEnabled() ? "y" : "n"),*/ cheatNameCheck/*.c_str()).c_str()*/, cheat->isEnabled());
+                        auto cheatToggleItem = new tsl::elm::CompactToggleListItem(/*formatString("%d:%s: %s", cheat->getID(), (cheat->isEnabled() ? "y" : "n"),*/ cheatNameCheck/*.c_str()).c_str()*/, cheat->isEnabled());
                         cheatToggleItem->setStateChangedListener([&cheat](bool state) { cheat->setState(state);});
 
                         this->m_cheatToggleItems.insert({cheat->getID(), cheatToggleItem});
@@ -226,7 +222,7 @@ public:
                     std::string cheatNameCheck = cheat->getName();
                     replaceAll(cheatNameCheck, ":ENABLED", "");
 
-                    auto cheatToggleItem = new tsl::elm::ToggleListItem(cheatNameCheck, cheat->isEnabled());
+                    auto cheatToggleItem = new tsl::elm::CompactToggleListItem(cheatNameCheck, cheat->isEnabled());
                     cheatToggleItem->setStateChangedListener([&cheat](bool state) { cheat->setState(state); });
 
                     this->m_cheatToggleItems.insert({cheat->getID(), cheatToggleItem});
@@ -239,13 +235,8 @@ public:
 
             // display if no cheats in submenu
             if(this->m_numCheats < 1){
-                auto warning = new tsl::elm::CustomDrawer([](tsl::gfx::Renderer *renderer, u16 x, u16 y, u16 w, u16 h){
-                    static const auto iconWidth = renderer->getTextDimensions("", false, 90).first;
-                    static const auto textWidth = renderer->getTextDimensions(tr("No Cheats in Submenu!", "В подменю нет читов!"), false, 25).first;
-                    renderer->drawString("", false, (tsl::cfg::FramebufferWidth - iconWidth) / 2, 250, 90, (0xFFFF));
-                    renderer->drawString(tr("No Cheats in Submenu!", "В подменю нет читов!"), false, (tsl::cfg::FramebufferWidth - textWidth) / 2, 340, 25, (0xFFFF));
-                });
-
+                auto warning = new tsl::elm::List();
+                warning->addItem(new tsl::elm::CompactDescription(tr("No Cheats in Submenu!", "В подменю нет читов!")));
                 rootFrame->setContent(warning);
             } else rootFrame->setContent(list);
         }
@@ -300,107 +291,79 @@ public:
      }
 
     virtual tsl::elm::Element* createUI() override {
-        auto rootFrame = new tsl::elm::OverlayFrame(APP_TITLE, tr("System Information", "Системная информация"));
-
-        auto infos = new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer *renderer, u16 x, u16 y, u16 w, u16 h){
-
-            renderer->drawString(tr("CPU Temperature:", "Температура CPU:"), false, 63, 200, 18, (tsl::style::color::ColorText));
-            renderer->drawString(tr("PCB Temperature:", "Температура PCB:"), false, 63, 230, 18, (tsl::style::color::ColorText));
-
-            renderer->drawRect(x, 243, w, 1, renderer->a(tsl::style::color::ColorFrame));
-            renderer->drawString(tr("CPU Clock:", "Частота CPU:"), false, 63, 270, 18, (tsl::style::color::ColorText));
-            renderer->drawString(tr("GPU Clock:", "Частота GPU:"), false, 63, 300, 18, (tsl::style::color::ColorText));
-            renderer->drawString(tr("MEM Clock:", "Частота MEM:"), false, 63, 330, 18, (tsl::style::color::ColorText));
-
-            renderer->drawRect(x, 343, w, 1, renderer->a(tsl::style::color::ColorFrame));
-            renderer->drawString(tr("Local IP:", "Локальный IP:"), false, 63, 370, 18, (tsl::style::color::ColorText));
-
-
-            // Draw temperatures and battery percentage
-            static char PCB_temperatureStr[10];
-            static char SOC_temperatureStr[10];
-
-            // Use temporary float variables to receive the temperature values
-            static float tempSOC = 0.0f;
-            static float tempPCB = 0.0f;
-
-            ult::ReadSocTemperature(&tempSOC, false);
-            ult::ReadPcbTemperature(&tempPCB, false);
-
-            snprintf(SOC_temperatureStr, sizeof(SOC_temperatureStr) - 1, "%.1f °C", static_cast<double>(tempSOC));
-            snprintf(PCB_temperatureStr, sizeof(PCB_temperatureStr) - 1, "%.1f °C", static_cast<double>(tempPCB));
-
-            renderer->drawString(SOC_temperatureStr, false, 258, 200, 18, (tsl::style::color::ColorHighlight));
-            renderer->drawString(PCB_temperatureStr, false, 258, 230, 18, (tsl::style::color::ColorHighlight));
-
-            static u32 cpuClock = 0, gpuClock = 0, memClock = 0;
-
-            if (hosversionAtLeast(8,0,0)) {
-                clkrstGetClockRate(&this->m_clkrstSessionCpu, &cpuClock);
-                clkrstGetClockRate(&this->m_clkrstSessionGpu, &gpuClock);
-                clkrstGetClockRate(&this->m_clkrstSessionMem, &memClock);
-            } else {
-                pcvGetClockRate(PcvModule_CpuBus, &cpuClock);
-                pcvGetClockRate(PcvModule_GPU, &gpuClock);
-                pcvGetClockRate(PcvModule_EMC, &memClock);
-            }
-
-            renderer->drawString(formatString("%.01f MHz", cpuClock / 1'000'000.0F).c_str(), false, 258, 270, 18, (tsl::style::color::ColorHighlight));
-            renderer->drawString(formatString("%.01f MHz", gpuClock / 1'000'000.0F).c_str(), false, 258, 300, 18, (tsl::style::color::ColorHighlight));
-            renderer->drawString(formatString("%.01f MHz", memClock / 1'000'000.0F).c_str(), false, 258, 330, 18, (tsl::style::color::ColorHighlight));
-
-            if (this->m_ipAddressString ==  "0.0.0.0")
-                renderer->drawString(tr("Offline", "Не в сети"), false, 258, 370, 18, (tsl::style::color::ColorHighlight));
-            else
-                renderer->drawString(this->m_ipAddressString.c_str(), false, 258, 370, 18, (tsl::style::color::ColorHighlight));
-
-            if(hosversionAtLeast(15,0,0)){
-                NifmInternetConnectionType conType;
-                u32 wifiStrength;
-                NifmInternetConnectionStatus conStatus;
-                nifmGetInternetConnectionStatus(&conType, &wifiStrength, &conStatus);
-                renderer->drawString(tr("Connection:", "Подключение:"), false, 63, 400, 18, (tsl::style::color::ColorText));
-                if(conStatus == NifmInternetConnectionStatus_Connected && conType == NifmInternetConnectionType_WiFi) {
-                    std::string wifiStrengthStr = tr("(Strong)", "(Отлично)");
-                    tsl::Color color = tsl::Color(0x0, 0xF, 0x0, 0xF);
-                    if(wifiStrength == 2){
-                        wifiStrengthStr = tr("(Fair)", "(Хорошо)");
-                        color = tsl::Color(0xE, 0xE, 0x2, 0xF);
-                    } else if(wifiStrength <= 1){
-                        wifiStrengthStr = tr("(Poor)", "(Слабо)");
-                        color = tsl::Color(0xF, 0x0, 0x0, 0xF);
-                    }
-                    renderer->drawString("WiFi", false, 258, 400, 18, (tsl::style::color::ColorHighlight));
-                    renderer->drawString(wifiStrengthStr.c_str(), false, 303, 400, 18, (color));
-                } else if(conStatus == NifmInternetConnectionStatus_Connected && conType == NifmInternetConnectionType_Ethernet){
-                    renderer->drawString("Ethernet", false, 258, 400, 18, (tsl::style::color::ColorHighlight));
-                } else {
-                    renderer->drawString(tr("Disconnected", "Отключено"), false, 258, 400, 18, (tsl::style::color::ColorHighlight));
-                }
-            } else {
-                s32 signalStrength = 0;
-                wlaninfGetRSSI(&signalStrength);
-
-                renderer->drawString(tr("WiFi Signal:", "Сигнал WiFi:"), false, 63, 400, 18, (tsl::style::color::ColorText));
-                renderer->drawString(formatString("%d dBm", signalStrength).c_str(), false, 258, 400, 18, (tsl::style::color::ColorHighlight));
-            }
-
-            renderer->drawRect(x, 418, w, 1, renderer->a(tsl::style::color::ColorFrame));
-            renderer->drawString(tr("Credits:", "Разработчики:"), false, 63, 442, 18, tsl::style::color::ColorText);
-            renderer->drawString("WerWolv, proferabg, ppkantorski", false, 63, 466, 15, tsl::style::color::ColorHighlight);
-            renderer->drawString("& Dimasick-git", false, 63, 488, 15, tsl::style::color::ColorHighlight);
-        });
-        rootFrame->setContent(infos);
-
-        return rootFrame;
+        auto* frame = new tsl::elm::OverlayFrame(APP_TITLE, tr("System Information", "Системная информация"));
+        auto* list = new tsl::elm::List();
+        m_info[0] = new tsl::elm::CompactListItem(tr("CPU Temperature:", "Температура CPU:"), "--");
+        list->addItem(m_info[0]);
+        m_info[1] = new tsl::elm::CompactListItem(tr("PCB Temperature:", "Температура PCB:"), "--");
+        list->addItem(m_info[1]);
+        m_info[2] = new tsl::elm::CompactListItem(tr("CPU Clock:", "Частота CPU:"), "--");
+        list->addItem(m_info[2]);
+        m_info[3] = new tsl::elm::CompactListItem(tr("GPU Clock:", "Частота GPU:"), "--");
+        list->addItem(m_info[3]);
+        m_info[4] = new tsl::elm::CompactListItem(tr("MEM Clock:", "Частота MEM:"), "--");
+        list->addItem(m_info[4]);
+        m_info[5] = new tsl::elm::CompactListItem(tr("Local IP:", "Локальный IP:"), "--");
+        list->addItem(m_info[5]);
+        m_info[6] = new tsl::elm::CompactListItem(tr("Connection:", "Подключение:"), "--");
+        list->addItem(m_info[6]);
+        list->addItem(new tsl::elm::CompactCategoryHeader(tr("Credits:", "Разработчики:")));
+        list->addItem(new tsl::elm::CompactDescription("WerWolv, proferabg, ppkantorski & Dimasick-git"));
+        frame->setContent(list);
+        update();
+        return frame;
     }
 
-    virtual void update() { }
+    virtual void update() override {
+        if (!m_info[0]) return;
+        float soc = 0.0f, pcb = 0.0f;
+        ult::ReadSocTemperature(&soc, false);
+        ult::ReadPcbTemperature(&pcb, false);
+        m_info[0]->setValue(formatString("%.1f \u00b0C", static_cast<double>(soc)));
+        m_info[1]->setValue(formatString("%.1f \u00b0C", static_cast<double>(pcb)));
+        static u32 cpu = 0, gpu = 0, mem = 0;
+        if (hosversionAtLeast(8, 0, 0)) {
+            clkrstGetClockRate(&m_clkrstSessionCpu, &cpu);
+            clkrstGetClockRate(&m_clkrstSessionGpu, &gpu);
+            clkrstGetClockRate(&m_clkrstSessionMem, &mem);
+        } else {
+            pcvGetClockRate(PcvModule_CpuBus, &cpu);
+            pcvGetClockRate(PcvModule_GPU, &gpu);
+            pcvGetClockRate(PcvModule_EMC, &mem);
+        }
+        m_info[2]->setValue(formatString("%.1f MHz", cpu / 1'000'000.0F));
+        m_info[3]->setValue(formatString("%.1f MHz", gpu / 1'000'000.0F));
+        m_info[4]->setValue(formatString("%.1f MHz", mem / 1'000'000.0F));
+        if (R_SUCCEEDED(nifmGetCurrentIpAddress(&m_ipAddress))) {
+            m_ipAddressString = formatString("%u.%u.%u.%u", m_ipAddress & 0xFF, (m_ipAddress >> 8) & 0xFF, (m_ipAddress >> 16) & 0xFF, (m_ipAddress >> 24) & 0xFF);
+        }
+        m_info[5]->setValue(m_ipAddressString == "0.0.0.0" ? tr("Offline", "Не в сети") : m_ipAddressString);
+        if (hosversionAtLeast(15, 0, 0)) {
+            NifmInternetConnectionType type = {};
+            u32 strength = 0;
+            NifmInternetConnectionStatus status = {};
+            Result rc = nifmGetInternetConnectionStatus(&type, &strength, &status);
+            if (R_SUCCEEDED(rc) && status == NifmInternetConnectionStatus_Connected) {
+                if (type == NifmInternetConnectionType_WiFi) {
+                    const char* quality = strength > 2 ? tr("(Strong)", "(Отлично)") : strength == 2 ? tr("(Fair)", "(Хорошо)") : tr("(Poor)", "(Слабо)");
+                    m_info[6]->setValue(std::string("WiFi ") + quality);
+                } else {
+                    m_info[6]->setValue("Ethernet");
+                }
+            } else {
+                m_info[6]->setValue(tr("Disconnected", "Отключено"));
+            }
+        } else {
+            s32 signal = 0;
+            m_info[6]->setValue(R_SUCCEEDED(wlaninfGetRSSI(&signal)) ? formatString("%d dBm", signal) : "--");
+        }
+    }
 
 private:
-    ClkrstSession m_clkrstSessionCpu, m_clkrstSessionGpu, m_clkrstSessionMem;
-    u32 m_ipAddress;
-    std::string m_ipAddressString;
+    tsl::elm::CompactListItem* m_info[7] = {};
+    ClkrstSession m_clkrstSessionCpu = {}, m_clkrstSessionGpu = {}, m_clkrstSessionMem = {};
+    u32 m_ipAddress = 0;
+    std::string m_ipAddressString = "0.0.0.0";
 };
 
 
@@ -426,6 +389,7 @@ public:
 
         i2cInitialize();
         nifmInitialize(NifmServiceType_User);
+        if (hosversionBefore(15, 0, 0)) wlaninfInitialize();
     }
 
     virtual void exitServices() override {
@@ -433,8 +397,7 @@ public:
             edz::cheat::CheatManager::exit();
         nifmExit();
         i2cExit();
-        wlaninfExit();
-        nifmExit();
+        if (hosversionBefore(15, 0, 0)) wlaninfExit();
         clkrstExit();
         pcvExit();
 

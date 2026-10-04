@@ -3,6 +3,7 @@ scripts/
 docs/
 .gitmodules
 .gitignore
+.ryazhenka-version
 README.md
 Makefile
 libs/libryazhahand
