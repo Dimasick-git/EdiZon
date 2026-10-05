@@ -12,7 +12,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 APP_TITLE		:=	EdiZon
 APP_FILENAME	:=  ovlEdiZon
 APP_AUTHOR		:=	WerWolv, proferabg, ppkantorski, and Dimasick-git
-APP_VERSION		:=	$(shell cat $(TOPDIR)/.ryazhenka-version)
+APP_VERSION		:=	1.0.17
 
 TARGET			:=	$(APP_TITLE)
 OUTDIR			:=	out
