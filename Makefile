@@ -22,6 +22,9 @@ SOURCES			+=  $(foreach dir,$(SOURCES_TOP),$(shell find $(dir) -type d 2>/dev/nu
 INCLUDES		:=	include
 DATA			:=	data
 
+# Glass under the UI (libryazhahand libglass): the GPU presents the frame over a live blurred game frame.
+USING_GLASS_DIRECTIVE := 1
+
 include ${TOPDIR}/libs/libryazhahand/ryazhahand.mk
 
 #---------------------------------------------------------------------------------
